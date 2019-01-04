@@ -44,3 +44,5 @@ for i in range(len(Id)):
 
 for img in os.listdir(os.path.join(root, 'test')):
     savetest.write('test/{}\n'.format(img))
+
+print 'Number of ID: {}'.format(len(set(Id)))
