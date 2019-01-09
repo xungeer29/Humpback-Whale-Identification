@@ -1,11 +1,14 @@
 import torch.utils.data as data
 
 from PIL import Image
+import pandas
 import os
 import os.path
 
 def default_loader(path):
-    img = Image.open(path).convert('L')
+    #img = Image.open(path).convert('L')
+    img = Image.open(path).convert('RGB')
+    img = img.resize((256, 256))
     return img
 
 def default_list_reader(fileList):
@@ -15,6 +18,7 @@ def default_list_reader(fileList):
             imgPath, label = line.strip().split(' ')
             if label == '-1':
                 continue
+            #print(imgPath, label)
             imgList.append((imgPath, int(label)))
     return imgList
 

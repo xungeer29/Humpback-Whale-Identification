@@ -16,8 +16,9 @@ import torchvision.models as models
 
 import numpy as np
 
-from network import ResNet18
+from network import *
 from dataset import Dataset
+from utils import *
 
 parser = argparse.ArgumentParser(description='Kaggle: Humpback Whale Identification')
 parser.add_argument('--cuda', '-c', default=True)
@@ -37,15 +38,15 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--print-freq', '-p', default=100, type=int,
                     metavar='N', help='print frequency (default: 100)')
-parser.add_argument('--model', default='ResNet18', type=str, metavar='Model',
+parser.add_argument('--model', default='ResNet34', type=str, metavar='Model',
                     help='model type: ResNet18, ResNet34, ResNet50, ResNet101')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--root_path', default='/data2/shentao/DATA/Kaggle/Whale/raw/', type=str, metavar='PATH',
                     help='path to root path of images (default: none)')
-parser.add_argument('--train_list', default='train.txt', type=str, metavar='PATH',
+parser.add_argument('--train_list', default='../data/train.txt', type=str, metavar='PATH',
                     help='path to training list (default: none)')
-parser.add_argument('--val_list', default='test.txt', type=str, metavar='PATH',
+parser.add_argument('--val_list', default='../data/val.txt', type=str, metavar='PATH',
                     help='path to validation list (default: none)')
 parser.add_argument('--save_path', default='../models/', type=str, metavar='PATH',
                     help='path to save checkpoint (default: none)')
@@ -102,6 +103,7 @@ def main():
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:
@@ -118,7 +120,7 @@ def main():
                 transforms.ToTensor(),
             ])),
         batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True)
+        num_workers=args.workers, pin_memory=False)
 
     val_loader = torch.utils.data.DataLoader(
         Dataset(root=args.root_path, fileList=args.val_list, 
@@ -127,7 +129,7 @@ def main():
                 transforms.ToTensor(),
             ])),
         batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)   
+        num_workers=args.workers, pin_memory=False)   
 
     # define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
@@ -137,23 +139,35 @@ def main():
 
     validate(val_loader, model, criterion)    
 
+    best_prec1 = 0
+    #lrs = []
+    #losses_ = []
     for epoch in range(args.start_epoch, args.epochs):
 
         adjust_learning_rate(optimizer, epoch)
+        #lr = adjust_learning_rate(optimizer, epoch)
+        #lrs.append(lr)
+        #draw_curve(lrs, 0.9, 'learning_rate')
 
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch)
+        #loss = train(train_loader, model, criterion, optimizer, epoch)
+        #losses_.append(loss)
+        #draw_curve(losses_, 0.9, 'loss')
 
         # evaluate on validation set
-        prec1 = validate(val_loader, model, criterion)
+        prec1, prec5 = validate(val_loader, model, criterion)
+        if prec1>best_prec1:
+            best_prec1 = prec1
 
-        save_name = args.save_path + args.model +'_' + str(epoch+1) + '.pth.tar'
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'arch': args.arch,
-            'state_dict': model.state_dict(),
-            'prec1': prec1,
-        }, save_name)
+            #save_name = args.save_path + args.model +'_' + str(epoch+1) + '.pth.tar'
+            save_name = args.save_path + args.model +'_' + 'best.pth'
+            save_checkpoint({
+                'epoch': epoch + 1,
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'prec1': prec1,
+            }, save_name)
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -166,16 +180,16 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
+    print('start training...')
     for i, (input, target) in enumerate(train_loader):
         data_time.update(time.time() - end)
 
-        #input      = input.cuda()
-        #target     = target.cuda()
         input_var  = torch.autograd.Variable(input).cuda()
         target_var = torch.autograd.Variable(target).cuda()
 
         # compute output
         output = model(input_var)
+        #print('label: {}\npredict: {}'.format(target_var, output.size()))
         loss   = criterion(output, target_var)
 
         # measure accuracy and record loss
@@ -194,14 +208,15 @@ def train(train_loader, model, criterion, optimizer, epoch):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+            print('Epoch: [{}/{}][{}/{}] | '
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f}) | '
+                  'Data {data_time.val:.3f} ({data_time.avg:.3f}) | '
+                  'Loss {loss.val:.4f} ({loss.avg:.4f}) | '
+                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f}) | '
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
+                   epoch, args.epochs, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
+        #return loss.data[0]
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -214,14 +229,14 @@ def validate(val_loader, model, criterion):
 
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
-        #input      = input.cuda()
-        #target     = target.cuda()
         input_var  = torch.autograd.Variable(input, volatile=True).cuda()
         target_var = torch.autograd.Variable(target, volatile=True).cuda()
         #print(input_var, target_var)
+        #print(input_var.shape)
 
         # compute output
-        output, _ = model(input_var)
+        output = model(input_var)
+        #print('label: {}\npredict: {}'.format(target_var, output.size()))
         loss   = criterion(output, target_var)
 
         # measure accuracy and record loss
@@ -232,9 +247,9 @@ def validate(val_loader, model, criterion):
         top5.update(prec5[0], input.size(0))
 
 
-    print('\nTest set: Average loss: {}, Accuracy: ({})\n'.format(losses.avg, top1.avg))
+    print('\nTest set: Average loss: {}, Accuracy@1: {}, Accuracy@5: {}\n'.format(losses.avg, top1.avg, top5.avg))
 
-    return top1.avg
+    return top1.avg, top5.avg
 
 def save_checkpoint(state, filename):
     torch.save(state, filename)
@@ -267,6 +282,8 @@ def adjust_learning_rate(optimizer, epoch):
         print('Change lr')
         for param_group in optimizer.param_groups:
             param_group['lr'] = param_group['lr'] * scale
+
+    #return lr
 
 
 def accuracy(output, target, topk=(1,)):
