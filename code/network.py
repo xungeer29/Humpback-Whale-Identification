@@ -49,9 +49,100 @@ class ResNet34(nn.Module):
 
         return x
 
+class ResNet50(nn.Module):
+    def __init__(self, model, num_classes=1000):
+        super(ResNet50, self).__init__()
+        self.backbone = model
+
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(2048, num_classes)
+
+
+    def forward(self, x):
+        x = whitening(x)
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+
+        x = self.backbone.layer1(x)
+        x = self.backbone.layer2(x)
+        x = self.backbone.layer3(x)
+        x = self.backbone.layer4(x)
+
+        x = self.backbone.avgpool(x)
+        
+        x = x.view(x.size(0), -1)
+        x = l2_norm(x)
+        x = self.dropout(x)
+        x = self.fc(x)
+
+        return x
+
+
+class ResNet101(nn.Module):
+    def __init__(self, model, num_classes=1000):
+        super(ResNet101, self).__init__()
+        self.backbone = model
+
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(2048, num_classes)
+
+
+    def forward(self, x):
+        x = whitening(x)
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+
+        x = self.backbone.layer1(x)
+        x = self.backbone.layer2(x)
+        x = self.backbone.layer3(x)
+        x = self.backbone.layer4(x)
+
+        x = self.backbone.avgpool(x)
+        
+        x = x.view(x.size(0), -1)
+        x = l2_norm(x)
+        x = self.dropout(x)
+        x = self.fc(x)
+
+        return x
+
+class ResNet152(nn.Module):
+    def __init__(self, model, num_classes=1000):
+        super(ResNet152, self).__init__()
+        self.backbone = model
+
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(2048, num_classes)
+
+
+    def forward(self, x):
+        x = whitening(x)
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+
+        x = self.backbone.layer1(x)
+        x = self.backbone.layer2(x)
+        x = self.backbone.layer3(x)
+        x = self.backbone.layer4(x)
+
+        x = self.backbone.avgpool(x)
+        
+        x = x.view(x.size(0), -1)
+        x = l2_norm(x)
+        x = self.dropout(x)
+        x = self.fc(x)
+
+        return x
+
 if __name__ == '__main__':
-    resnet18 = models.resnet18(pretrained=True)
-    models = ResNet18(resnet18, 5004)
+    backbone = models.resnet101(pretrained=True)
+    models = ResNet101(backbone, 5004)
     data = torch.randn(1, 3, 224, 224)
     x = models(data)
     print(x)

@@ -1,14 +1,33 @@
 import torch.utils.data as data
 
 from PIL import Image
-import pandas
+import pandas as pd
 import os
 import os.path
+import numpy as np
 
 def default_loader(path):
-    #img = Image.open(path).convert('L')
+    img_bbox = pd.read_csv('../data/bounding_boxes.csv')
+    imgs = img_bbox['Image']
+    xmins = img_bbox['x0']
+    ymins = img_bbox['y0']
+    xmaxs = img_bbox['x1']
+    ymaxs = img_bbox['y1']
+    imgname = path.split('/')[-1]
+    idx = imgs.isin([imgname])
+    #print('idx:{}'.format(idx))
+    xmin = int(xmins[idx])
+    ymin = int(ymins[idx])
+    xmax = int(xmaxs[idx])
+    ymax = int(ymaxs[idx])
+    w = xmax-xmin
+    h = ymax-ymin
+    #print('bbox: {} {} {} {} {}'.format(imgname, xmin, ymin, xmax, ymax))
     img = Image.open(path).convert('RGB')
+    W, H = img.size
+    img = img.crop((max(0,xmin-w//10), max(0,ymin-h//10), min(W,xmax+w//10), min(H,ymax+h//10)))
     img = img.resize((256, 256))
+    #img.save('../log/'+imgname)
     return img
 
 def default_list_reader(fileList):

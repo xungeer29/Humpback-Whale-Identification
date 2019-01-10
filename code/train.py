@@ -19,6 +19,7 @@ import numpy as np
 from network import *
 from dataset import Dataset
 from utils import *
+from loss import FocalLoss
 
 parser = argparse.ArgumentParser(description='Kaggle: Humpback Whale Identification')
 parser.add_argument('--cuda', '-c', default=True)
@@ -70,6 +71,9 @@ def main():
     elif args.model == 'ResNet101':
         backbone = models.resnet101(pretrained=True)
         model = ResNet101(backbone, num_classes=args.num_classes)
+    elif args.model == 'ResNet152':
+        backbone = models.resnet152(pretrained=True)
+        model = ResNet152(backbone, num_classes=args.num_classes)
     else:
         print('Error model type\n')
 
@@ -117,6 +121,8 @@ def main():
             transform=transforms.Compose([ 
                 transforms.RandomCrop(224),
                 transforms.RandomHorizontalFlip(), 
+                transforms.RandomRotation(30),
+                transforms.ColorJitter(0.05, 0.05, 0.05, 0.05),
                 transforms.ToTensor(),
             ])),
         batch_size=args.batch_size, shuffle=True,
@@ -132,7 +138,8 @@ def main():
         num_workers=args.workers, pin_memory=False)   
 
     # define loss function and optimizer
-    criterion = nn.CrossEntropyLoss()
+    #criterion = nn.CrossEntropyLoss()
+    criterion = FocalLoss(gamma=2)
 
     if args.cuda:
         criterion.cuda()
@@ -161,7 +168,7 @@ def main():
             best_prec1 = prec1
 
             #save_name = args.save_path + args.model +'_' + str(epoch+1) + '.pth.tar'
-            save_name = args.save_path + args.model +'_' + 'best.pth'
+            save_name = args.save_path + args.model +'_' + 'best_focalloss.pth'
             save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
@@ -275,7 +282,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch):
     scale = 0.457305051927326
-    step  = 10
+    step  = 20
     lr = args.lr * (scale ** (epoch // step))
     print('lr: {}'.format(lr))
     if (epoch != 0) & (epoch % step == 0):

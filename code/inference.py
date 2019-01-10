@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('--model', dest='model', help='which model to use',
             default='ResNet34', type=str)
     parser.add_argument('--snapshot', dest='snapshot', help='Path of model snapshot.',
-            default='../models/ResNet34_best.pth', type=str)
+            default='../models/ResNet34_best_focalloss.pth', type=str)
     parser.add_argument('--test_path', dest='test_path', help='Path of test images', 
 	        default='/data2/shentao/DATA/Kaggle/Whale/raw/test/')
     parser.add_argument('--output_string', dest='output_string', help='Submission file path.',
