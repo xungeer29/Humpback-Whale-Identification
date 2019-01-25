@@ -45,7 +45,7 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--root_path', default='/data2/shentao/DATA/Kaggle/Whale/raw/', type=str, metavar='PATH',
                     help='path to root path of images (default: none)')
-parser.add_argument('--train_list', default='../data/train.txt', type=str, metavar='PATH',
+parser.add_argument('--train_list', default='../data/train_full.txt', type=str, metavar='PATH',
                     help='path to training list (default: none)')
 parser.add_argument('--val_list', default='../data/val.txt', type=str, metavar='PATH',
                     help='path to validation list (default: none)')
@@ -138,13 +138,13 @@ def main():
         num_workers=args.workers, pin_memory=False)   
 
     # define loss function and optimizer
-    #criterion = nn.CrossEntropyLoss()
-    criterion = FocalLoss(gamma=2)
+    criterion = nn.CrossEntropyLoss()
+    #criterion = FocalLoss(gamma=2)
 
     if args.cuda:
         criterion.cuda()
 
-    validate(val_loader, model, criterion)    
+    #validate(val_loader, model, criterion)    
 
     best_prec1 = 0
     #lrs = []
@@ -163,17 +163,18 @@ def main():
         #draw_curve(losses_, 0.9, 'loss')
 
         # evaluate on validation set
-        prec1, prec5 = validate(val_loader, model, criterion)
-        if prec1>best_prec1:
-            best_prec1 = prec1
+        #prec1, prec5 = validate(val_loader, model, criterion)
+        #if prec1>best_prec1:
+        #    best_prec1 = prec1
 
-            #save_name = args.save_path + args.model +'_' + str(epoch+1) + '.pth.tar'
-            save_name = args.save_path + args.model +'_' + 'best_focalloss.pth'
+        #save_name = args.save_path + args.model +'_' + str(epoch+1) + '.pth.tar'
+        if epoch>30 and epoch%10==0:
+            save_name = args.save_path + args.model +'_' + str(epoch) +'_best_ce.pth'
             save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'prec1': prec1,
+                #'prec1': prec1,
             }, save_name)
 
 

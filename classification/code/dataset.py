@@ -58,3 +58,10 @@ class Dataset(data.Dataset):
 
     def __len__(self):
         return len(self.imgList)
+
+if __name__ == '__main__':
+    root = '/data2/shentao/DATA/Kaggle/Whale/raw/'
+    fileList = '../data/train_full.txt'
+    for im, target in Dataset(root, fileList):
+        print(im, target)
+        break

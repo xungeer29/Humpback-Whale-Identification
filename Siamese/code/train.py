@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import argparse
 import os
 import shutil
@@ -15,9 +15,11 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 import numpy as np
+from visdom import Visdom
 
 from network import *
 from dataset import WhaleDataset
+from metric import bce_metric
 #from utils import *
 #from loss import FocalLoss
 
@@ -53,6 +55,9 @@ parser.add_argument('--save_path', default='../models/', type=str, metavar='PATH
                     help='path to save checkpoint (default: none)')
 parser.add_argument('--num_classes', default=5004, type=int,
                     metavar='N', help='number of classes (default: 99891)')
+
+
+viz = Visdom(env='kaggle_whale')
 
 def main():
     global args
@@ -149,6 +154,7 @@ def main():
 
     #validate(val_loader, model, criterion)    
 
+
     best_prec1 = 0
     #lrs = []
     #losses_ = []
@@ -172,7 +178,7 @@ def main():
         #save_name = args.save_path + args.model +'_' + str(epoch+1) + '.pth.tar'
         if epoch>30 and epoch%10==0:
             save_name = args.save_path + 'Siamese_'+args.model +'_' + str(epoch) +'_best_bce.pth'
-            save_checkpoint(model, save_name)
+            save_checkpoint(head, save_name)
 
 
 def train(train_loader, branch, head, criterion, optimizer, epoch):
@@ -182,7 +188,7 @@ def train(train_loader, branch, head, criterion, optimizer, epoch):
     top1       = AverageMeter()
     top5       = AverageMeter()
 
-    branch.eval()
+    branch.train()
     head.train()
 
     end = time.time()
@@ -194,20 +200,24 @@ def train(train_loader, branch, head, criterion, optimizer, epoch):
         input2_var  = torch.autograd.Variable(input2).cuda()
         target_var = torch.autograd.Variable(target).cuda()
 
-        print('input1:{}\ninput1:{}\ntarget:{}'.format(input1_var, input2_var, target_var))
+        #print('input1:{}\ninput1:{}\ntarget:{}'.format(input1_var, input2_var, target_var))
 
         # compute output
         fea1 = branch.forward(input1_var)
         fea2 = branch.forward(input2_var)
         output = head.forward(fea1, fea2)
-        #print('label: {}\npredict: {}'.format(target_var, output.size()))
-        loss = criterion(output, target_var)
+        #output = torch.squeeze(output, dim=1)
+        target_var = target_var.view(output.size())
+        #print('label: {} size: {}\npredict: {} size: {}'.format(target_var, target_var.size(), output, output.size()))
+        loss = criterion(output, target_var.float())
+        viz.line(X=torch.FloatTensor([i]), Y=torch.FloatTensor([loss]), win='train', update='append', opts={'title':'train loss'})
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target_var.data, topk=(1,5))
+        #prec1 = accuracy(output.data, target_var.data, topk=(1,))
+        acc = bce_metric(output.view(-1, 1).detach(), target_var.view(-1,1))
         losses.update(loss.data[0], input1_var.size(0))
-        top1.update(prec1[0], input1_var.size(0))
-        top5.update(prec5[0], input1_var.size(0))
+        #top1.update(prec1[0], input1_var.size(0))
+        #top5.update(prec5[0], input1_var.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -219,14 +229,9 @@ def train(train_loader, branch, head, criterion, optimizer, epoch):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Epoch: [{}/{}][{}/{}] | '
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f}) | '
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f}) | '
-                  'Loss {loss.val:.4f} ({loss.avg:.4f}) | '
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f}) | '
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, args.epochs, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+            print('Epoch: [{}/{}][{}/{}] | Loss:{}  | prec:{} '.format(
+                   epoch, args.epochs, i, len(train_loader),
+                   loss, acc))
         #return loss.data[0]
 
 def validate(val_loader, model, criterion):

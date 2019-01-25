@@ -37,7 +37,7 @@ TRAIN = '/data2/shentao/DATA/Kaggle/Whale/raw/train/'
 TEST = '/data2/shentao/DATA/Kaggle/Whale/raw/test/'
 P2H = '../data/p2h.pickle'
 P2SIZE = '../data/p2size.pickle'
-BB_DF = "/data2/gaofuxun/liveness/whale/data/bounding_boxes.csv"
+BB_DF = "/data2/gaofuxun/liveness/whale/Siamese/data/bounding_boxes.csv"
 
 tagged = dict([(p, w) for _, p, w in read_csv(TRAIN_DF).to_records()])
 submit = [p for _, p, _ in read_csv(SUB_Df).to_records()]
@@ -50,15 +50,20 @@ def expand_path(p):
         return TEST + p
     return p
 
+print('p2size:')
 if isfile(P2SIZE):
     print("P2SIZE exists.")
     with open(P2SIZE, 'rb') as f:
         p2size = pickle.load(f)
+    print('loaded p2size.pickle\n')
 else:
     p2size = {}
     for p in tqdm(join):
         size = pil_image.open(expand_path(p)).size
         p2size[p] = size
+    with open(P2SIZE, 'wb') as f:
+        pickle.dump(p2size, f)
+    print('finish p2size\n')
 
 def match(h1, h2):
     for p1 in h2ps[h1]:
@@ -76,11 +81,12 @@ def match(h1, h2):
             if a > 0.1: return False
     return True
 
-
+print('p2h:')
 if isfile(P2H):
     print("P2H exists.")
     with open(P2H, 'rb') as f:
         p2h = pickle.load(f)
+    print('loaded p2h.pickle\n')
 else:
     # Compute phash for each image in the training and test set.
     p2h = {}
@@ -113,13 +119,22 @@ else:
         h = str(h)
         if h in h2h: h = h2h[h]
         p2h[p] = h
-#     with open(P2H, 'wb') as f:
-#         pickle.dump(p2h, f)
+    with open(P2H, 'wb') as f:
+        pickle.dump(p2h, f)
 # For each image id, determine the list of pictures
-h2ps = {}
-for p, h in p2h.items():
-    if h not in h2ps: h2ps[h] = []
-    if p not in h2ps[h]: h2ps[h].append(p)
+print('h2ps:')
+if isfile('../data/h2ps.pickle'):
+    with open('../data/h2ps.pickle', 'rb') as f:
+        h2ps = pickle.load(f)
+    print('loaded h2ps\n')
+else:
+    h2ps = {}
+    for p, h in tqdm(p2h.items()):
+        if h not in h2ps: h2ps[h] = []
+        if p not in h2ps[h]: h2ps[h].append(p)
+    with open('../data/h2ps.pickle', 'wb') as f:
+        pickle.dump(h2ps, f)
+    print('finish h2ps\n')
 
 def show_whale(imgs, per_row=2):
     n = len(imgs)
@@ -147,18 +162,27 @@ def prefer(ps):
             best_s = s
     return best_p
 
-h2p = {}
-for h, ps in h2ps.items():
-    h2p[h] = prefer(ps)
-len(h2p), list(h2p.items())[:5]
+print('h2p:\n')
+if isfile('../data/h2p.pickle'):
+    with open('../data/h2p.pickle', 'rb') as f:
+        h2p = pickle.load(f)
+    print('loaded h2p\n')
+else:
+    h2p = {}
+    for h, ps in h2ps.items():
+        h2p[h] = prefer(ps)
+    with open('../data/h2p.pickle', 'wb') as f:
+        pickle.dump(h2p, f)
+    print('finish h2p\n')
+#len(h2p), list(h2p.items())[:5]
 
 # Read the bounding box data from the bounding box kernel (see reference above)
 p2bb = pd.read_csv(BB_DF).set_index("Image")
 
-old_stderr = sys.stderr
-sys.stderr = open('/dev/null' if platform.system() != 'Windows' else 'nul', 'w')
+#old_stderr = sys.stderr
+#sys.stderr = open('/dev/null' if platform.system() != 'Windows' else 'nul', 'w')
 
-sys.stderr = old_stderr
+#sys.stderr = old_stderr
 
 img_shape = (384, 384, 1)  # The image shape used by the model
 anisotropy = 2.15  # The horizontal compression ratio
