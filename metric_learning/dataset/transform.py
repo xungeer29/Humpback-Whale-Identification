@@ -47,7 +47,7 @@ def TTA_cropps(image, target_shape=(128, 128, 3)):
 
 
 
-def random_erase(image,mask, p=0.5):
+def random_erase(image,mask=None, p=0.5):
     if random.random() < p:
         width, height, d = image.shape
         x = random.randint(0, width)
@@ -55,8 +55,15 @@ def random_erase(image,mask, p=0.5):
         b_w = random.randint(5,10)
         b_h = random.randint(5,10)
         image[x:x+b_w, y:y+b_h] = 0
-        mask[x:x+b_w, y:y+b_h] = 0
-    return image, mask
+        if mask is not None:
+            mask[x:x+b_w, y:y+b_h] = 0
+            return image, mask
+        else:
+            return image
+    elif mask is not None:
+        return image, mask
+    else:
+        return image
 def random_cropping3d(image, mask, target_shape=(8, 128, 128), p=0.5):
     zeros = np.zeros(target_shape)
     target_l,target_w, target_h = target_shape
@@ -69,7 +76,7 @@ def random_cropping3d(image, mask, target_shape=(8, 128, 128), p=0.5):
         start_y = (target_h - height) // 2
     zeros[:target_l,start_x:start_x+width, start_y:start_y+height] = image
     return zeros
-def random_shift(image,mask, p=0.5):
+def random_shift(image,mask=None, p=0.5):
     if random.random() < p:
         width, height, d = image.shape
         zero_image = np.zeros_like(image)
@@ -78,31 +85,45 @@ def random_shift(image,mask, p=0.5):
         h = random.randint(0, 30) - 15
         zero_image[max(0, w): min(w+width, width), max(h, 0): min(h+height, height)] = \
             image[max(0, -w): min(-w+width, width), max(-h, 0): min(-h+height, height)]
-        zero_mask[max(0, w): min(w + width, width), max(h, 0): min(h + height, height)] = \
-            mask[max(0, -w): min(-w + width, width), max(-h, 0): min(-h + height, height)]
         image = zero_image.copy()
-        mask = zero_mask.copy()
-    return image, mask
-def random_scale(image, mask, p=0.5):
+        if mask is not None:
+            zero_mask[max(0, w): min(w + width, width), max(h, 0): min(h + height, height)] = \
+                mask[max(0, -w): min(-w + width, width), max(-h, 0): min(-h + height, height)]
+            mask = zero_mask.copy()
+            return image, mask
+        else:
+            return image
+    elif mask is None:
+        return image
+    else:
+        return image, mask
+def random_scale(image, mask=None, p=0.5):
     if random.random() < p:
         scale = random.random() * 0.1 + 0.9
         assert 0.9 <= scale <= 1
         width, height, d = image.shape
         zero_image = np.zeros_like(image)
-        zero_mask = np.zeros_like(mask)
         new_width = round(width * scale)
         new_height = round(height * scale)
-        image = cv2.resize(image, (new_height, new_width))
-        mask = cv2.resize(mask, (new_height, new_width))
+        image = cv2.resize(image, (int(new_height), int(new_width)))
         start_w = random.randint(0, width - new_width)
         start_h = random.randint(0, height - new_height)
-        zero_image[start_w: start_w + new_width,
-        start_h:start_h+new_height] = image
+        zero_image[int(start_w): int(start_w + new_width),
+                   int(start_h):int(start_h+new_height)] = image
         image = zero_image.copy()
-        zero_mask[start_w: start_w + new_width,
-        start_h:start_h + new_height] = mask
-        mask = zero_mask.copy()
-    return image, mask
+        if mask is not None:
+            zero_mask = np.zeros_like(mask)
+            mask = cv2.resize(mask, (new_height, new_width))
+            zero_mask[start_w: start_w + new_width,
+                      start_h:start_h + new_height] = mask
+            mask = zero_mask.copy()
+            return image, mask
+        else:
+            return image
+    elif mask is None:
+        return image
+    else:
+        return image, mask
 def change_scale(image, scale=1):
     if 1:
         assert 0.9 <= scale <= 1
@@ -173,11 +194,14 @@ def do_inv_speckle_noise(image, sigma=0.5):
     image = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
     return image
 
-def random_angle_rotate(image, mask, angles=[-30, 30]):
+def random_angle_rotate(image, mask=None, angles=[-30, 30]):
     angle = random.randint(0, angles[1]-angles[0]) + angles[0]
     image = rotate(image, angle)
-    mask = rotate(mask, angle)
-    return image, mask
+    if mask is not None:
+        mask = rotate(mask, angle)
+        return image, mask
+    else:
+        return image
 def rotate(image, angle, center=None, scale=1.0):
     (h, w) = image.shape[:2]
 

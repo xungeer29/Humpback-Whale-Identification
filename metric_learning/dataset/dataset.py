@@ -29,7 +29,7 @@ class WhaleDataset(Dataset):
     def load_labels(self):
         print('loading labels...')
         label_dict = {}
-        with open('../data/whale2id.txt', 'r') as f:
+        with open('./data/whale2id.txt', 'r') as f:
             for line in f.readlines():
                 whale, id = line.strip().split(' ')
                 if whale == 'new_whale':
@@ -72,7 +72,8 @@ class WhaleDataset(Dataset):
         x0, y0, x1, y1 = self.bbox_dict[name]
         image = image[int(y0):int(y1), int(x0):int(x1)]
         image, add_ = transform(image, label)
-        return image, add_
+        #print('add_: ', add_)
+        return image, add_ # add_ 应该一直是0或5004, why?
 
     def __getitem__(self, index):
         label = self.labels[index]
@@ -113,7 +114,7 @@ class WhaleTestDataset(Dataset):
     def load_labels(self):
         print('loading labels...')
         label_dict = {}
-        with open('../data/whale2id.txt', 'r') as f:
+        with open('./data/whale2id.txt', 'r') as f:
             for line in f.readlines():
                 whale, id = line.strip().split(' ')
                 if whale == 'new_whale':
@@ -134,27 +135,29 @@ class WhaleTestDataset(Dataset):
         return bbox_dict
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.names)
 
-    def get_image(self, name, transform, label, mode='train'):
+    def get_image(self, name, transform, mode='train'):
         root = '/media/gfx/data1/DATA/Kaggle/whale'
         image = cv2.imread(os.path.join(root, 'featured/train', name))
         if image is None:
-            image = cv2.imread(os.path.join(root, 'fratured/test', name))
+            image = cv2.imread(os.path.join(root, 'featured/test', name))
         if image is None:
             image = cv2.imread(os.path.join(root, 'playground/train', name))
         if image is None:
             image = cv2.imread(os.path.join(root, 'playground/test', name))
+        #cv2.imwrite('test.jpg', image)
+        #assert image is None, 'image read error in WhaleTestDataset.get_image!!!'
         x0, y0, x1, y1 = self.bbox_dict[name]
         image = image[int(y0):int(y1), int(x0):int(x1)]
-        image, add_ = transform(image) # mask
+        image = transform(image) # mask
         return image
 
-    def getitiem(self, index):
+    def __getitem__(self, index):
         if self.mode in ['test']:
             name = self.names[index]
             image = self.get_image(name, self.transform, mode='test')
-            return image
+            return image, name
         elif self.mode in ['valid', 'train']:
             name = self.names[index]
             label = self.label_dict[self.labels[index]]
@@ -165,7 +168,7 @@ class WhaleTestDataset(Dataset):
 if __name__ == '__main__':
     print('check WhaleDataset ...')
     names_train, labels_train = [], []
-    with open('../data/train_fold_0.txt', 'r') as f:
+    with open('./data/train_fold_0.txt', 'r') as f:
         for line in f.readlines():
             name, label = line.strip().split(' ')
             names_train.append(name)
@@ -183,8 +186,8 @@ if __name__ == '__main__':
     dataloader_train = DataLoader(dst_train, shuffle=True, drop_last=True, batch_size=16, num_workers=0)
     for data in dataloader_train:
         [anchor_im, pos_im, neg_im, neg_im2], [label1, label2, label3, label4] = data
-        print label1, label2, label3, label4
-        print anchor_im
+        print('label1:{}, label2:{}, label3:{}, label4:{}'.format(label1, label2, label3, label4))
+        #print(anchor_im)
         cv2.imwrite('anchor.jpg', anchor_im)
         cv2.imwrite('psos.jpg', pos_im)
         cv2.imwrite('neg.jpg', neg_im)

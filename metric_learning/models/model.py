@@ -1,8 +1,10 @@
 # -*- coding:utf-8 -*-
 
 from models.modelZoo import *
+from models.loss import *
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 
@@ -14,7 +16,7 @@ def l2_norm(input, axis=1):
 
 class model_whale(nn.Module):
     def __init__(self, num_classes=5005, inchannels=3, model_name='resnet18'):
-        super(self, model_whale).__init__()
+        super(model_whale, self).__init__()
         planes = 512
         self.model_name = model_name
 
@@ -29,12 +31,12 @@ class model_whale(nn.Module):
         else:
             assert False, '{} is error'.format(model_name)
 
-        self.bottlenect_g = nn.BatchNormal1d(planes)
-        self.bottlenect_g.bias.requires_grad_(False)
+        self.bottleneck_g = nn.BatchNorm1d(planes)
+        self.bottleneck_g.bias.requires_grad_(False)
 
         self.fc = nn.Linear(planes, num_classes)
-        init.normal_(self.fc.weight, std=0.001)
-        init.constant_(self.fc.bias, 0)
+        nn.init.normal_(self.fc.weight, std=0.001)
+        nn.init.constant_(self.fc.bias, 0)
 
     def forward(self, x, label=None):
         feat = self.basemodel(x)
@@ -64,12 +66,12 @@ class model_whale(nn.Module):
             for param in self.basemodel.layer4.parameters():
                 param.requires_grad = True
 
-    def getLoss(self, global_feat, local_feat, results,labels):
+    def getLoss(self, global_feat, results, labels):
         loss_ = sigmoid_loss(results, labels, topk=30)
 
         self.loss = loss_
 
 if __name__ == '__main__':
     basemodel = se_resnext50_32x4d(inchannels=3, pretrained='imagenet')
-    print basemodel
+    print(basemodel)
 
