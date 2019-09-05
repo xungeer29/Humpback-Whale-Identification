@@ -81,38 +81,35 @@ Train:
 
 更改`train.py`中
 
-  ```python
   freeze = False
   model_name = 'senet154'
   min_num_class = 10
   checkPoint_start = 0
   lr = 3e-4
-  ```
+  
   
   当网络收敛后终止训练(大概train map5 >= 0.98)
 
 * Step 2
 更改`train.py`中
 
-  ```python
   freeze = True
   model_name = 'senet154'
   min_num_class = 0
   checkPoint_start = best checkPoint of step 1
   lr = 3e-4
-  ```
+  `
   
   网络收敛后终止训练
 
 * Step 3
 更改`train.py`中
 
-  ```python
   lr = 3e-5
-  ```
 
 Test:
+
 更改`test.py`
-```python
+
 checkPoint_start = best checkPoint of step 3
-```
+
