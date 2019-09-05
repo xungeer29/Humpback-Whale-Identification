@@ -12,11 +12,7 @@
 
 鲸鱼尾部图像样例
 
-![01](./figs/whale01.jpeg)
-![](./figs/whale02.jpeg)
-
-![](./figs/whale03.jpeg)
-![](./figs/whale04.jpeg)
+![](whales.PNG)
 
 图像中鲸鱼尾部的形态差异较大，有严重的遮挡，大小也相差巨大。
 
